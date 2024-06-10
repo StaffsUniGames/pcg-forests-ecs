@@ -16,6 +16,11 @@ public struct ForestComponent : IComponentData
     public NativeParallelMultiHashMap<int, NativeArray<TreeComponent>> m_hashMap;
 
     /// <summary>
+    /// Represents a spatial hasher for hashing 2D coordinates to 1D indices
+    /// </summary>
+    public SpatialHasher m_spatialHasher;
+
+    /// <summary>
     /// The generator for providing RNG
     /// </summary>
     public Unity.Mathematics.Random m_rng;

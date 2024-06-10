@@ -22,6 +22,10 @@ public class ForestAuthoring : MonoBehaviour
     [Header("Cull region parameters")]
     public Range<float> m_cullRegionX;
     public Range<float> m_cullRegionY;
+
+    [Header("Spatial hashing parameters")]
+    [Range(1, 256)]
+    public int m_gridSubdivisions;
 }
 
 public class ForestBaker : Baker<ForestAuthoring>
@@ -45,14 +49,20 @@ public class ForestBaker : Baker<ForestAuthoring>
             m_spreadChance = authoring.m_spreadChance,
             m_spreadDistance = authoring.m_spreadDistance,
 
+
             //By default, wind is pointing right
             m_windDirection = new float2(1, 0),
 
             //Initialise RNG
             m_rng = new Unity.Mathematics.Random(authoring.m_seed),
 
+            //--
+
             //Set up hash map
-            m_hashMap = new NativeParallelMultiHashMap<int, NativeArray<TreeComponent>>()
+            m_hashMap = new NativeParallelMultiHashMap<int, NativeArray<TreeComponent>>(),
+
+            //Initialise spatial hasher
+            m_spatialHasher = new SpatialHasher(new float2(authoring.m_cullRegionX.max, authoring.m_cullRegionY.max), authoring.m_gridSubdivisions)
         });
     }
 }
