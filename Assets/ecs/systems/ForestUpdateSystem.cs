@@ -24,6 +24,8 @@ public partial struct ForestUpdateSystem : ISystem
     {
         foreach (var forest in SystemAPI.Query<ForestComponent>())
         {
+            //This current gets all trees regardless of what "forest" they are in; 
+            //TODO: make trees reliant on forest index
             var treeQuery = SystemAPI.QueryBuilder().WithAll<TreeComponent>().Build();
             var treeCount = treeQuery.CalculateEntityCount();
 
@@ -38,9 +40,14 @@ public partial struct ForestUpdateSystem : ISystem
             JobHandle hashJob = assignIndexJob.ScheduleParallel(treeQuery, state.Dependency);
             hashJob.Complete();
 
-            for(int i = 0; i < hashMap.Count(); i++)
+            var keys = hashMap.GetKeyArray(Allocator.Temp);
+
+            for(int i = 0; i < keys.Length; i++)
             {
-                UnityEngine.Debug.Log($"index {i}");
+                var key = keys[i];
+
+                foreach (var value in hashMap.GetValuesForKey(key))
+                    UnityEngine.Debug.Log($"key {key} has value {value}");
             }
         }
     }
