@@ -11,21 +11,16 @@ public struct ForestComponent : IComponentData
     public Entity m_treePrefab;
 
     /// <summary>
-    /// The hash map of trees, for spatial hashing purposes
-    /// </summary>
-    public NativeParallelMultiHashMap<int, NativeArray<TreeComponent>> m_hashMap;
-
-    /// <summary>
-    /// Represents a spatial hasher for hashing 2D coordinates to 1D indices
-    /// </summary>
-    public SpatialHasher m_spatialHasher;
-
-    /// <summary>
     /// The generator for providing RNG
     /// </summary>
     public Unity.Mathematics.Random m_rng;
 
     //--
+
+    /// <summary>
+    /// A spatial hasher for the forest
+    /// </summary>
+    public SpatialHasher m_spatialHasher;
 
     /// <summary>
     /// The wind direction within the forest
