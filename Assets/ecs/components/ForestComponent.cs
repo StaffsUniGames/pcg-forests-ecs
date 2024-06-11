@@ -21,6 +21,11 @@ public struct ForestComponent : IComponentData
     /// A spatial hasher for the forest
     /// </summary>
     public SpatialHasher m_spatialHasher;
+    
+    /// <summary>
+    /// The amount of initial trees to spawn
+    /// </summary>
+    public uint m_initialTreeAmount;
 
     /// <summary>
     /// The wind direction within the forest

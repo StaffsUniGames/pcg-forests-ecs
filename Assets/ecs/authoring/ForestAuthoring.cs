@@ -9,6 +9,9 @@ public class ForestAuthoring : MonoBehaviour
     [Header("RNG Parameters"), Tooltip("The seed for random generation")]
     public uint m_seed;
 
+    [Range(1, 150)]
+    public uint m_initialTreeAmount;
+
     [Header("Assignables")]
     public GameObject m_treePrefab;
 
@@ -50,6 +53,7 @@ public class ForestBaker : Baker<ForestAuthoring>
             m_spreadChance = authoring.m_spreadChance,
             m_spreadDistance = authoring.m_spreadDistance,
 
+            m_initialTreeAmount = authoring.m_initialTreeAmount,
 
             //By default, wind is pointing right
             m_windDirection = new float2(1, 0),
