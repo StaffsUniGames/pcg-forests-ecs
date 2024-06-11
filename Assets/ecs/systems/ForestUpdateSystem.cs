@@ -5,11 +5,14 @@ using Unity.Burst;
 using Unity.Jobs;
 using Unity.Mathematics;
 using System.Diagnostics;
-using static UnityEngine.EventSystems.EventTrigger;
 using Unity.Transforms;
+using System;
+using Unity.Collections.LowLevel.Unsafe;
+using System.Linq;
 
 public partial struct ForestUpdateSystem : ISystem
 {
+    
     public void OnCreate(ref SystemState state)
     {
         //Build a query for any forests
@@ -22,7 +25,7 @@ public partial struct ForestUpdateSystem : ISystem
     }
     private EntityCommandBuffer.ParallelWriter GetEntityCommandBuffer(ref SystemState state)
     {
-        var ecbSingleton = SystemAPI.GetSingleton<BeginSimulationEntityCommandBufferSystem.Singleton>();
+        var ecbSingleton = SystemAPI.GetSingleton<EndSimulationEntityCommandBufferSystem.Singleton>();
         var ecb = ecbSingleton.CreateCommandBuffer(state.WorldUnmanaged);
         return ecb.AsParallelWriter();
     }
@@ -30,6 +33,8 @@ public partial struct ForestUpdateSystem : ISystem
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
+        var ecb = GetEntityCommandBuffer(ref state);
+
         foreach (var forest in SystemAPI.Query<ForestComponent>())
         {
             //This current gets all trees regardless of what "forest" they are in; 
@@ -37,44 +42,82 @@ public partial struct ForestUpdateSystem : ISystem
             var treeQuery = SystemAPI.QueryBuilder().WithAll<TreeComponent>().Build();
             var treeCount = treeQuery.CalculateEntityCount();
 
-            if(treeCount == 0)
-            {
-                SpawnInitialTreesJob spawnJob = new SpawnInitialTreesJob
-                {
-                    ecb = GetEntityCommandBuffer(ref state)
-                };
+            new UpdateForestJob { }.ScheduleParallel();
 
-                spawnJob.ScheduleParallel();
+            if (treeCount == 0)
+            {
+                UnityEngine.Debug.Log("spawning initial trees");
+                SpawnInitialTreesJob initialJob = new SpawnInitialTreesJob { ecb = ecb };
+                initialJob.ScheduleParallel();
             }
 
-            //var hashMap = new NativeParallelMultiHashMap<int, int>(treeCount, state.WorldUnmanaged.UpdateAllocator.ToAllocator);
+            var treeLookup = SystemAPI.GetComponentLookup<TreeComponent>();
 
-            //AssignIndexToTreeJob assignIndexJob = new AssignIndexToTreeJob
-            //{
-            //    parallelHashMap = hashMap.AsParallelWriter(),
-            //    forest = forest
-            //};
+            var hashMap = new NativeParallelMultiHashMap<int, TreeComponent>(treeCount, state.WorldUnmanaged.UpdateAllocator.ToAllocator);
 
-            //JobHandle hashJob = assignIndexJob.ScheduleParallel(treeQuery, state.Dependency);
-            //hashJob.Complete();
+            var hashJob = new AssignIndexToTreeJob
+            {
+                parallelHashMap = hashMap.AsParallelWriter(),
+                forest = forest
+            }.ScheduleParallel(treeQuery, state.Dependency);
+            hashJob.Complete();
 
-            //var keys = hashMap.GetKeyArray(Allocator.Temp);
 
-            //for (int i = 0; i < keys.Length; i++)
-            //{
-            //    var key = keys[i];
+            new CullDeadTreesJob { ecb = ecb }.ScheduleParallel();
+            new SpawnTreesJob{ ecb = ecb, forest = forest }.ScheduleParallel();
+            new FONCompetitionJob { ecb = ecb, forest = forest, hashMap = hashMap, treeLookup = treeLookup }.ScheduleParallel();
+        }
+    }
+}
 
-            //    foreach (var value in hashMap.GetValuesForKey(key))
-            //        UnityEngine.Debug.Log($"key {key} has value {value}");
-            //}
+[BurstCompile]
+public partial struct UpdateForestJob : IJobEntity
+{
+    public void Execute([ChunkIndexInQuery] int chunkIndex, ref ForestComponent forest)
+    {
+        forest.m_windDirection = forest.m_rng.NextFloat(math.PI * 2);
+    }
+}
 
-            //SpawnTreesJob spawnTreesJob = new SpawnTreesJob
-            //{
-            //    ecb = GetEntityCommandBuffer(ref state),
-            //    forest = forest
-            //};
+[BurstCompile]
+public partial struct FONCompetitionJob : IJobEntity
+{
+    public EntityCommandBuffer.ParallelWriter ecb;
+    public ForestComponent forest;
+    
+    [ReadOnly] public NativeParallelMultiHashMap<int, TreeComponent> hashMap;
 
-            //spawnTreesJob.ScheduleParallel();
+    [NativeDisableParallelForRestriction]
+    [NativeDisableContainerSafetyRestriction]
+    public ComponentLookup<TreeComponent> treeLookup;
+
+    public void Execute([EntityIndexInQuery] int entityIndex, ref TreeComponent tree, in Entity entity)
+    {
+        //Already culled? No point considering it
+        if (tree.m_needsCull)
+            return;
+
+        var entities = hashMap.GetValuesForKey(tree.m_hash);
+
+        foreach(var other in entities)
+        {
+            var dist = math.distance(other.m_position, tree.m_position);
+
+            //They're the same
+            if (dist <= math.EPSILON)
+                continue;
+
+            //Not in competition? skip
+            if (math.distance(other.m_position, tree.m_position) > 1.0f)
+                continue;
+
+            //Otherwise..
+            //float maturityA = (tree.m_age / tree.m_deathAge) * forest.m_spreadDistance.min;
+            //float maturityB = (other.m_age / other.m_deathAge) * forest.m_spreadDistance.min;
+
+            //Other larger than this one, set to be culled
+            if (tree.m_age > other.m_age)
+                tree.m_needsCull = true;
         }
     }
 }
@@ -82,13 +125,29 @@ public partial struct ForestUpdateSystem : ISystem
 [BurstCompile]
 public partial struct AssignIndexToTreeJob : IJobEntity
 {
-    public NativeParallelMultiHashMap<int, int>.ParallelWriter parallelHashMap;
+    public NativeParallelMultiHashMap<int, TreeComponent>.ParallelWriter parallelHashMap;
     public ForestComponent forest;
 
-    public void Execute([EntityIndexInQuery] int entityIndex, in TreeComponent tree)
+    public void Execute([EntityIndexInQuery] int entityIndex, ref TreeComponent tree)
     {
         var hash = forest.m_spatialHasher.Hash(tree.m_position);
-        parallelHashMap.Add(hash, entityIndex);
+        tree.m_hash = hash;
+        parallelHashMap.Add(hash, tree);
+    }
+}
+
+[BurstCompile]
+public partial struct CullDeadTreesJob : IJobEntity
+{
+    public EntityCommandBuffer.ParallelWriter ecb;
+
+    public void Execute([ChunkIndexInQuery] int chunkIndex, in TreeComponent tree, in Entity entity)
+    {
+        //This culls only entities with a DeadTreeTagComponent attached to them,
+        //look at the query given by the params above. Dead tree must be ref'd with
+        //in rather than ref
+        if(tree.m_needsCull)
+            ecb.DestroyEntity(chunkIndex, entity);
     }
 }
 
@@ -117,7 +176,8 @@ public partial struct SpawnInitialTreesJob : IJobEntity
                 m_age = 0,
                 m_deathAge = forest.m_rng.NextUInt(forest.m_deathAge.min, forest.m_deathAge.max),
                 m_matureAge = forest.m_rng.NextUInt(forest.m_matureAge.min, forest.m_matureAge.max),
-                m_position = randPos2
+                m_position = randPos2,
+                m_needsCull = false
             });
 
             //Set the position of the entity
@@ -132,28 +192,59 @@ public partial struct SpawnTreesJob : IJobEntity
     public EntityCommandBuffer.ParallelWriter ecb;
     public ForestComponent forest;
 
-    public void Execute([ChunkIndexInQuery] int chunkIndex, in TreeComponent tree, in Entity entity)
+    public void Execute([ChunkIndexInQuery] int chunkIndex, ref TreeComponent tree, in Entity entity)
     {
         //TreeComponent modifiedTree = tree;
-        //modifiedTree.m_age++;
+        tree.m_age++;
 
-        //ecb.SetComponent<TreeComponent>(chunkIndex, entity, tree);
+        //Set to needing cull
+        if (tree.m_age > tree.m_deathAge)
+            tree.m_needsCull = true;
 
-        //if (forest.m_rng.NextFloat() > forest.m_spreadChance.max)
-        //    return;
+        //Check if mature or not
+        if (tree.m_age < tree.m_matureAge)
+            return;
 
-        //float2 randPos = tree.m_position + forest.m_rng.NextFloat2(new float2(forest.m_spreadDistance.max, forest.m_spreadDistance.max));
+        //forest.m_rng.InitState((uint)chunkIndex);
+        float randChance = forest.m_rng.NextFloat(forest.m_spreadChance.min, forest.m_spreadChance.max);
 
-        //Entity newEntity = ecb.Instantiate(chunkIndex, forest.m_treePrefab);
+        if (forest.m_rng.NextFloat() > randChance)
+            return;
 
-        //TreeComponent newTree = new TreeComponent
-        //{
-        //    m_age = 0,
-        //    m_deathAge = forest.m_deathAge.min,
-        //    m_matureAge = forest.m_matureAge.min,
-        //    m_position = randPos
-        //};
+        //----
 
-        //ecb.AddComponent(chunkIndex, newEntity, newTree);
+        //Use NextFloat because NextFloat2 doesn't do what you'd expect
+        float a = forest.m_windDirection;
+        float d = forest.m_rng.NextFloat(forest.m_spreadDistance.min, forest.m_spreadDistance.max);
+
+        float randX = tree.m_position.x + math.sin(a) * d;
+        float randY = tree.m_position.y + math.cos(a) * d;
+
+        //Wrap around if x/y limits exceeded
+        if (randX > forest.m_cullRegionX.max) randX %= forest.m_cullRegionX.max;
+        if (randY > forest.m_cullRegionY.max) randY %= forest.m_cullRegionY.max;
+        //--
+        if (randX < forest.m_cullRegionX.min) randX = forest.m_cullRegionX.max - math.abs(randX);
+        if (randY < forest.m_cullRegionY.min) randY = forest.m_cullRegionY.max - math.abs(randY);
+
+        //No swizzling, they are spawned on XY plane
+        float3 randPos3 = new float3(randX, randY, 0);
+        float2 randPos2 = new float2(randX, randY);
+
+        //Instantiate the new tree
+        Entity newEntity = ecb.Instantiate(chunkIndex, forest.m_treePrefab);
+
+        //Set the position of the entity
+        ecb.SetComponent(chunkIndex, newEntity, LocalTransform.FromPosition(randPos3));
+
+        //Add a tree component: make this entity a tree
+        ecb.AddComponent(chunkIndex, newEntity, new TreeComponent
+        {
+            m_age = 0,
+            m_deathAge = forest.m_rng.NextUInt(forest.m_deathAge.min, forest.m_deathAge.max),
+            m_matureAge = forest.m_rng.NextUInt(forest.m_matureAge.min, forest.m_matureAge.max),
+            m_position = randPos2,
+            m_needsCull = false
+        });
     }
 }

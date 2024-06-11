@@ -60,6 +60,8 @@ public struct TreeComponent : IComponentData
     public uint m_age;
     public uint m_deathAge;
     public uint m_matureAge;
+    public bool m_needsCull;
+    public int m_hash;
 }
 
 /// <summary>

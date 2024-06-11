@@ -168,27 +168,27 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_seed: 1
-  m_initialTreeAmount: 150
+  m_initialTreeAmount: 64
   m_treePrefab: {fileID: 1922504800}
   m_matureAge:
     min: 30
-    max: 40
+    max: 35
   m_deathAge:
-    min: 90
-    max: 120
+    min: 40
+    max: 40
   m_spreadChance:
-    min: 0.25
-    max: 0.35
+    min: 0.5
+    max: 0.5
   m_spreadDistance:
-    min: 5
-    max: 7.5
+    min: 1
+    max: 2
   m_cullRegionX:
     min: 0
-    max: 50
+    max: 200
   m_cullRegionY:
     min: 0
-    max: 50
-  m_gridSubdivisions: 32
+    max: 200
+  m_gridSubdivisions: 20
 --- !u!1 &802840127
 GameObject:
   m_ObjectHideFlags: 0
@@ -295,7 +295,7 @@ Camera:
   far clip plane: 1000
   field of view: 60
   orthographic: 1
-  orthographic size: 58.5
+  orthographic size: 110.8
   m_Depth: 0
   m_CullingMask:
     serializedVersion: 2
@@ -319,7 +319,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 802840127}
   m_LocalRotation: {x: 0.0041890964, y: -0.008401178, z: -0.0000311083, w: -0.999956}
-  m_LocalPosition: {x: 22.56, y: 24.18, z: -19.24}
+  m_LocalPosition: {x: 83.2, y: 100, z: -19.24}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []

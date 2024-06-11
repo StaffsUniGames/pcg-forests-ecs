@@ -30,7 +30,7 @@ public struct ForestComponent : IComponentData
     /// <summary>
     /// The wind direction within the forest
     /// </summary>
-    public float2 m_windDirection;
+    public float m_windDirection;
 
     /// <summary>
     /// The min/max mature age of trees in the forest

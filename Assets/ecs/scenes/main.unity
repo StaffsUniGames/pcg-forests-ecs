@@ -339,6 +339,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_seed: 0
+  m_initialTreeAmount: 0
   m_treePrefab: {fileID: 0}
   m_matureAge:
     min: 30
@@ -347,8 +348,8 @@ MonoBehaviour:
     min: 90
     max: 120
   m_spreadChance:
-    min: 0.25
-    max: 0.35
+    min: 0.05
+    max: 0.05
   m_spreadDistance:
     min: 5
     max: 10

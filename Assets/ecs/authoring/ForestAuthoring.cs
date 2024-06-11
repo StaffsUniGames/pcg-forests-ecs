@@ -39,6 +39,10 @@ public class ForestBaker : Baker<ForestAuthoring>
         //Make an entity for the thing we will attach a forest component to
         var entity = GetEntity(TransformUsageFlags.Dynamic);
 
+        float2 worldSize;
+        worldSize.x = authoring.m_cullRegionX.max;
+        worldSize.y = authoring.m_cullRegionY.max;
+
         AddComponent(entity, new ForestComponent
         {
             //Set prefab from one in authoring
@@ -54,12 +58,12 @@ public class ForestBaker : Baker<ForestAuthoring>
             m_spreadDistance = authoring.m_spreadDistance,
 
             m_initialTreeAmount = authoring.m_initialTreeAmount,
+            m_spatialHasher = new SpatialHasher(worldSize, authoring.m_gridSubdivisions),
 
-            //By default, wind is pointing right
-            m_windDirection = new float2(1, 0),
+            m_windDirection = 0,
 
             //Initialise RNG
             m_rng = new Unity.Mathematics.Random(authoring.m_seed)
-        });
+        });;
     }
 }
