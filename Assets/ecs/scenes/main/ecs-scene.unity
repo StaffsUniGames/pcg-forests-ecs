@@ -188,7 +188,8 @@ MonoBehaviour:
   m_cullRegionY:
     min: 0
     max: 200
-  m_gridSubdivisions: 20
+  m_collectFullDataSet: 1
+  m_gridSubdivisions: 0
 --- !u!1 &802840127
 GameObject:
   m_ObjectHideFlags: 0
