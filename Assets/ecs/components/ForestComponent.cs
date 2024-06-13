@@ -65,5 +65,20 @@ public struct ForestComponent : IComponentData
     /// The min/max Y extents of the cull region
     /// </summary>
     public Range<float> m_cullRegionY;
+
+	/// <summary>
+	/// The path for the data being collected to be saved to
+	/// </summary>
+	public BlobAssetReference<FilePath> m_filePath;
+
+	/// <summary>
+	/// bool for tracking if the forest is just starting
+	/// </summary>
+	public bool m_InitialSeed;
+}
+
+public struct FilePath
+{
+	public BlobString path;
 }
 

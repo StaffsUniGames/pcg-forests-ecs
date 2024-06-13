@@ -4,11 +4,9 @@ using Unity.Collections;
 using Unity.Burst;
 using Unity.Jobs;
 using Unity.Mathematics;
-using System.Diagnostics;
 using Unity.Transforms;
 using System;
 using Unity.Collections.LowLevel.Unsafe;
-using System.Linq;
 
 public partial struct ForestUpdateSystem : ISystem
 {
@@ -35,7 +33,7 @@ public partial struct ForestUpdateSystem : ISystem
     {
         var ecb = GetEntityCommandBuffer(ref state);
 
-        foreach (var forest in SystemAPI.Query<ForestComponent>())
+        foreach (RefRW<ForestComponent> forest in SystemAPI.Query<RefRW<ForestComponent>>())
         {
             //This current gets all trees regardless of what "forest" they are in; 
             //TODO: make trees reliant on forest index
@@ -44,28 +42,30 @@ public partial struct ForestUpdateSystem : ISystem
 
             new UpdateForestJob { }.ScheduleParallel();
 
-            if (treeCount == 0)
-            {
-                UnityEngine.Debug.Log("spawning initial trees");
-                SpawnInitialTreesJob initialJob = new SpawnInitialTreesJob { ecb = ecb };
-                initialJob.ScheduleParallel();
-            }
+			if (treeCount == 0 || forest.ValueRO.m_InitialSeed)
+			{
+				UnityEngine.Debug.Log("spawning initial trees");
+				new SpawnInitialTreesJob { ecb = ecb }.ScheduleParallel();
+				forest.ValueRW.m_InitialSeed = false;
+			}
+			else
+			{
 
-            var treeLookup = SystemAPI.GetComponentLookup<TreeComponent>();
+				var treeLookup = SystemAPI.GetComponentLookup<TreeComponent>();
 
-            var hashMap = new NativeParallelMultiHashMap<int, TreeComponent>(treeCount, state.WorldUnmanaged.UpdateAllocator.ToAllocator);
+				var hashMap = new NativeParallelMultiHashMap<int, TreeComponent>(treeCount, state.WorldUnmanaged.UpdateAllocator.ToAllocator);
 
-            var hashJob = new AssignIndexToTreeJob
-            {
-                parallelHashMap = hashMap.AsParallelWriter(),
-                forest = forest
-            }.ScheduleParallel(treeQuery, state.Dependency);
-            hashJob.Complete();
+				var hashJob = new AssignIndexToTreeJob
+				{
+					parallelHashMap = hashMap.AsParallelWriter(),
+					forest = forest.ValueRO
+				}.ScheduleParallel(state.Dependency);
+				hashJob.Complete();
 
-
-            new CullDeadTreesJob { ecb = ecb }.ScheduleParallel();
-            new SpawnTreesJob{ ecb = ecb, forest = forest }.ScheduleParallel();
-            new FONCompetitionJob { ecb = ecb, forest = forest, hashMap = hashMap, treeLookup = treeLookup }.ScheduleParallel();
+				new CullDeadTreesJob { ecb = ecb }.ScheduleParallel();
+				new SpawnTreesJob { ecb = ecb, forest = forest.ValueRO }.ScheduleParallel();
+				new FONCompetitionJob { ecb = ecb, forest = forest.ValueRO, hashMap = hashMap, treeLookup = treeLookup }.ScheduleParallel();
+			}
         }
     }
 }
@@ -247,4 +247,15 @@ public partial struct SpawnTreesJob : IJobEntity
             m_needsCull = false
         });
     }
+}
+
+[BurstCompile]
+public partial struct ResetForestJob : IJobEntity
+{
+	public EntityCommandBuffer.ParallelWriter ecb;
+
+	public void Execute([ChunkIndexInQuery] int chunkIndex, in TreeComponent tree, in Entity entity)
+	{
+		ecb.DestroyEntity(chunkIndex, entity);
+	}
 }

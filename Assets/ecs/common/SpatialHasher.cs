@@ -7,7 +7,7 @@ public struct SpatialHasher : IComponentData
     private float2 m_worldSize;
 
     /// The number of col/rows the space is divided into
-    private int m_gridSize;
+    public int m_gridSize;
 
     /// <summary>
     /// A spatial hasher
