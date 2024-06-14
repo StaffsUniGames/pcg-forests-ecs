@@ -7,6 +7,9 @@ using Unity.Mathematics;
 using Unity.Transforms;
 using System;
 using Unity.Collections.LowLevel.Unsafe;
+using Unity.Rendering;
+using System.Drawing;
+using Unity.VisualScripting;
 
 public partial struct ForestUpdateSystem : ISystem
 {
@@ -91,12 +94,25 @@ public partial struct FONCompetitionJob : IJobEntity
     [NativeDisableContainerSafetyRestriction]
     public ComponentLookup<TreeComponent> treeLookup;
 
-    public void Execute([EntityIndexInQuery] int entityIndex, ref TreeComponent tree, in Entity entity)
+    public void Execute([EntityIndexInQuery] int entityIndex, ref TreeComponent tree, ref URPMaterialPropertyBaseColor treeColour,  in Entity entity)
     {
         //Already culled? No point considering it
         if (tree.m_needsCull)
             return;
 
+        float delta = 0;
+        if(tree.m_age < tree.m_matureAge)
+        {
+            delta = (float)tree.m_age / (float)tree.m_matureAge;
+            treeColour.Value = new float4(0, math.lerp(0.0f,1f, delta), 0, 1);
+        }
+        else 
+        {
+            delta = ((float)tree.m_age) / ((float)tree.m_deathAge);
+            treeColour.Value = new float4(0,math.lerp(1f, 0f, delta),0, 1);
+
+        }
+ 
         var entities = hashMap.GetValuesForKey(tree.m_hash);
 
         foreach(var other in entities)
