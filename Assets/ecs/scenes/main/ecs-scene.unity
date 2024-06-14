@@ -177,8 +177,8 @@ MonoBehaviour:
     min: 40
     max: 40
   m_spreadChance:
-    min: 0.5
-    max: 0.5
+    min: 0.1
+    max: 0.2
   m_spreadDistance:
     min: 1
     max: 2
@@ -188,7 +188,7 @@ MonoBehaviour:
   m_cullRegionY:
     min: 0
     max: 200
-  m_collectFullDataSet: 1
+  m_collectFullDataSet: 0
   m_gridSubdivisions: 85
 --- !u!1 &802840127
 GameObject:
