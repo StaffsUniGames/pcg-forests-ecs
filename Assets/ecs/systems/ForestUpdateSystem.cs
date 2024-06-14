@@ -20,8 +20,9 @@ public partial struct ForestUpdateSystem : ISystem
                 .WithAny<ForestComponent>()
                 .Build(ref state);
 
-        //Require at least one for update
-        state.RequireAnyForUpdate(forestQuery);
+		//Require at least one for update
+		state.RequireAnyForUpdate(forestQuery);
+		state.World.MaximumDeltaTime = 100f;
     }
     private EntityCommandBuffer.ParallelWriter GetEntityCommandBuffer(ref SystemState state)
     {
