@@ -14,7 +14,7 @@ public class ForestAuthoring : MonoBehaviour
     public uint m_initialTreeAmount;
 
     [Header("Assignables")]
-    public GameObject m_treePrefab;
+    public GameObject[] m_treePrefabs;
 
     [Header("Age-related parameters")]
     public Range<uint> m_matureAge;
@@ -32,6 +32,16 @@ public class ForestAuthoring : MonoBehaviour
 	public bool m_collectFullDataSet;
 	[Range(1, 256)]
 	public int m_gridSubdivisions;
+
+	[Header("Visualisation parameters")]
+	public bool m_alignAlongXZ;
+
+	public bool m_randomiseScale;
+}
+
+public struct TreePrefabItem : IBufferElementData
+{
+	public Entity prefab;
 }
 
 public class ForestBaker : Baker<ForestAuthoring>
@@ -52,11 +62,22 @@ public class ForestBaker : Baker<ForestAuthoring>
 		builder.Dispose();
 		AddBlobAsset<FilePath>(ref filePathBlob, out var hash);
 
+		NativeArray<Entity> prefabs = new NativeArray<Entity>(authoring.m_treePrefabs.Length, Allocator.Persistent);
+
+		for(int i = 0; i < authoring.m_treePrefabs.Length; i++)
+			prefabs[i] = GetEntity(authoring.m_treePrefabs[i], TransformUsageFlags.Dynamic);
+
+		DynamicBuffer<TreePrefabItem> buffer = this.AddBuffer<TreePrefabItem>(entity);
+
+		foreach (var prefab in authoring.m_treePrefabs)
+			buffer.Add(new TreePrefabItem { prefab = GetEntity(prefab, TransformUsageFlags.Dynamic) });
+
+		//var buffer = AddBuffer<Spawnable>().Reinterpret<Entity>();
+		//foreach (var prefab in authoring.prefabs)
+			//buffer.Add(GetEntity(prefab));
+
 		AddComponent(entity, new ForestComponent
 		{
-			//Set prefab from one in authoring
-			m_treePrefab = GetEntity(authoring.m_treePrefab, TransformUsageFlags.Dynamic),
-
 			m_cullRegionX = authoring.m_cullRegionX,
 			m_cullRegionY = authoring.m_cullRegionY,
 
@@ -73,6 +94,9 @@ public class ForestBaker : Baker<ForestAuthoring>
 
 			m_filePath = filePathBlob,
 			m_InitialSeed = true,
+
+			m_alignTreesAlongXZ = authoring.m_alignAlongXZ,
+			m_randomiseScale = authoring.m_randomiseScale,
 
 			//Initialise RNG
 			m_rng = new Unity.Mathematics.Random(authoring.m_seed)

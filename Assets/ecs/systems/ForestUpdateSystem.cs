@@ -36,37 +36,43 @@ public partial struct ForestUpdateSystem : ISystem
     {
         var ecb = GetEntityCommandBuffer(ref state);
 
-        foreach (RefRW<ForestComponent> forest in SystemAPI.Query<RefRW<ForestComponent>>())
+        foreach ((RefRW<ForestComponent> forest, Entity entity) in SystemAPI.Query<RefRW<ForestComponent>>().WithEntityAccess())
         {
+            BufferLookup<TreePrefabItem> treePrefabLookup = state.GetBufferLookup<TreePrefabItem>(true);
+
             //This current gets all trees regardless of what "forest" they are in; 
             //TODO: make trees reliant on forest index
             var treeQuery = SystemAPI.QueryBuilder().WithAll<TreeComponent>().Build();
             var treeCount = treeQuery.CalculateEntityCount();
 
-            new UpdateForestJob { }.ScheduleParallel();
+            state.Dependency = new UpdateForestJob { }.ScheduleParallel(state.Dependency);
+            state.Dependency.Complete();
 
 			if (treeCount == 0 || forest.ValueRO.m_InitialSeed)
 			{
 				UnityEngine.Debug.Log("spawning initial trees");
-				new SpawnInitialTreesJob { ecb = ecb }.ScheduleParallel();
+
+                //Schedule job to spawn initial number of trees
+				state.Dependency = new SpawnInitialTreesJob { ecb = ecb, prefabLookup = treePrefabLookup }.ScheduleParallel(state.Dependency);
+                state.Dependency.Complete();
+                
 				forest.ValueRW.m_InitialSeed = false;
 			}
 			else
 			{
-
+                //Build lookup
 				var treeLookup = SystemAPI.GetComponentLookup<TreeComponent>();
 
+                //Make native multi hashmap
 				var hashMap = new NativeParallelMultiHashMap<int, TreeComponent>(treeCount, state.WorldUnmanaged.UpdateAllocator.ToAllocator);
 
-				var hashJob = new AssignIndexToTreeJob
-				{
-					parallelHashMap = hashMap.AsParallelWriter(),
-					forest = forest.ValueRO
-				}.ScheduleParallel(state.Dependency);
-				hashJob.Complete();
+                //Find hashmap for all trees
+				state.Dependency = new AssignIndexToTreeJob { parallelHashMap = hashMap.AsParallelWriter(), forest = forest.ValueRO }.ScheduleParallel(state.Dependency);
+				state.Dependency.Complete();
 
+                //Cull trees, then propogate, and finally calculate competition
 				new CullDeadTreesJob { ecb = ecb }.ScheduleParallel();
-				new SpawnTreesJob { ecb = ecb, forest = forest.ValueRO }.ScheduleParallel();
+                new SpawnTreesJob { ecb = ecb, forest = forest.ValueRO, forestEntity = entity, prefabLookup = treePrefabLookup }.ScheduleParallel();
 				new FONCompetitionJob { ecb = ecb, forest = forest.ValueRO, hashMap = hashMap, treeLookup = treeLookup }.ScheduleParallel();
 			}
         }
@@ -104,12 +110,12 @@ public partial struct FONCompetitionJob : IJobEntity
         if(tree.m_age < tree.m_matureAge)
         {
             delta = (float)tree.m_age / (float)tree.m_matureAge;
-            treeColour.Value = new float4(0, math.lerp(0f, 1f, delta), 0, 1);
+            treeColour.Value = new float4(0, math.lerp(0.5f, 1f, delta), 0, 1);
         }
         else 
         {
             delta = ((float)tree.m_age) / ((float)tree.m_deathAge);
-            treeColour.Value = new float4(math.lerp(0f, 1f, delta), math.lerp(1f, 0f, delta),0, 1);
+            treeColour.Value = new float4(0, math.lerp(1f, 0.25f, delta), 0, 1);
 
         }
  
@@ -167,16 +173,40 @@ public partial struct CullDeadTreesJob : IJobEntity
     }
 }
 
+public static class DynamicBufferExtensions
+{
+    /// <summary>
+    /// Selects a random element of the buffer
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <param name="buf"></param>
+    /// <param name="rng"></param>
+    /// <returns></returns>
+    public static T SelectRandom<T>(this in DynamicBuffer<T> buf, in Unity.Mathematics.Random rng) where T : unmanaged
+        => buf[rng.NextInt(0, buf.Length)];
+
+    /// <summary>
+    /// Selects the first element of the buffer
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <param name="buf"></param>
+    /// <returns></returns>
+    public static T SelectFirst<T>(this in DynamicBuffer<T> buf) where T : unmanaged => buf[0];
+}
+
 [BurstCompile]
 public partial struct SpawnInitialTreesJob : IJobEntity
 {
     public EntityCommandBuffer.ParallelWriter ecb;
+    [ReadOnly] public BufferLookup<TreePrefabItem> prefabLookup;
 
-    public void Execute([ChunkIndexInQuery] int chunkIndex, ref ForestComponent forest)
+    public void Execute([ChunkIndexInQuery] int chunkIndex, ref ForestComponent forest, in Entity entity)
     {
+        DynamicBuffer<TreePrefabItem> prefabBuf = prefabLookup[entity];
+
         for (int i = 0; i < forest.m_initialTreeAmount; i++)
         {
-            Entity newEntity = ecb.Instantiate(chunkIndex, forest.m_treePrefab);
+            Entity newEntity = ecb.Instantiate(chunkIndex, prefabBuf.SelectRandom(forest.m_rng).prefab);
 
             //Use NextFloat because NextFloat2 doesn't do what you'd expect
             float randX = forest.m_rng.NextFloat(forest.m_cullRegionX.min, forest.m_cullRegionX.max);
@@ -207,6 +237,8 @@ public partial struct SpawnTreesJob : IJobEntity
 {
     public EntityCommandBuffer.ParallelWriter ecb;
     public ForestComponent forest;
+    public Entity forestEntity;
+    [ReadOnly] public BufferLookup<TreePrefabItem> prefabLookup;
 
     public void Execute([ChunkIndexInQuery] int chunkIndex, ref TreeComponent tree, in Entity entity)
     {
@@ -229,6 +261,9 @@ public partial struct SpawnTreesJob : IJobEntity
 
         //----
 
+        DynamicBuffer<TreePrefabItem> prefabs = prefabLookup[forestEntity];
+        Entity randomPrefab = prefabs.SelectRandom(forest.m_rng).prefab;
+
         //Use NextFloat because NextFloat2 doesn't do what you'd expect
         float a = forest.m_windDirection;
         float d = forest.m_rng.NextFloat(forest.m_spreadDistance.min, forest.m_spreadDistance.max);
@@ -248,10 +283,30 @@ public partial struct SpawnTreesJob : IJobEntity
         float2 randPos2 = new float2(randX, randY);
 
         //Instantiate the new tree
-        Entity newEntity = ecb.Instantiate(chunkIndex, forest.m_treePrefab);
+        Entity newEntity = ecb.Instantiate(chunkIndex, randomPrefab);
+
+        //Build local transform
+        float scale = 1;
+
+        //Scale needs randomising?
+        if (forest.m_randomiseScale)
+            scale = forest.m_rng.NextFloat(0.85f, 1.0f);
+
+        if (forest.m_alignTreesAlongXZ)
+            randPos3 = new float3(randPos3.x, 0, randPos3.y);
+
+        //Build T*R*S from what we have so far
+        LocalTransform trans = LocalTransform.FromPositionRotationScale(randPos3, quaternion.identity, scale);
+
+        if (forest.m_alignTreesAlongXZ)
+        {
+            //Looks along z-axis with fwd = vec3.up
+            //quaternion rot = quaternion.LookRotationSafe(new float3(0, 0, 1), new float3(0, 0, 1));
+            //trans = LocalTransform.FromPositionRotationScale(randPos3, rot, scale);
+        }
 
         //Set the position of the entity
-        ecb.SetComponent(chunkIndex, newEntity, LocalTransform.FromPosition(randPos3));
+        ecb.SetComponent(chunkIndex, newEntity, trans);
 
         //Add a tree component: make this entity a tree
         ecb.AddComponent(chunkIndex, newEntity, new TreeComponent

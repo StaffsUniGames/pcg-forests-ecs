@@ -169,27 +169,30 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   m_seed: 1
   m_initialTreeAmount: 64
-  m_treePrefab: {fileID: 192044, guid: 19682540d8a014522a319b1cf788aee2, type: 3}
+  m_treePrefabs:
+  - {fileID: 192044, guid: 19682540d8a014522a319b1cf788aee2, type: 3}
   m_matureAge:
-    min: 30
-    max: 35
+    min: 20
+    max: 25
   m_deathAge:
-    min: 40
-    max: 40
+    min: 30
+    max: 30
   m_spreadChance:
-    min: 0.5
+    min: 0
     max: 0.5
   m_spreadDistance:
-    min: 1
-    max: 2
+    min: 5
+    max: 10
   m_cullRegionX:
     min: 0
-    max: 200
+    max: 350
   m_cullRegionY:
     min: 0
-    max: 200
-  m_collectFullDataSet: 1
-  m_gridSubdivisions: 69
+    max: 350
+  m_collectFullDataSet: 0
+  m_gridSubdivisions: 72
+  m_alignAlongXZ: 0
+  m_randomiseScale: 1
 --- !u!1 &802840127
 GameObject:
   m_ObjectHideFlags: 0
@@ -271,7 +274,7 @@ Camera:
   m_Enabled: 1
   serializedVersion: 2
   m_ClearFlags: 2
-  m_BackGroundColor: {r: 1, g: 1, b: 1, a: 0}
+  m_BackGroundColor: {r: 0, g: 0, b: 0, a: 0}
   m_projectionMatrixMode: 1
   m_GateFitMode: 2
   m_FOVAxisMode: 0
@@ -296,7 +299,7 @@ Camera:
   far clip plane: 1000
   field of view: 60
   orthographic: 1
-  orthographic size: 110.8
+  orthographic size: 188.8
   m_Depth: 0
   m_CullingMask:
     serializedVersion: 2
@@ -320,7 +323,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 802840127}
   m_LocalRotation: {x: -0.0043632016, y: 0.008726475, z: 0.000038077178, w: 0.99995244}
-  m_LocalPosition: {x: 83, y: 100, z: -20}
+  m_LocalPosition: {x: 169.7, y: 172.4, z: -20}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []

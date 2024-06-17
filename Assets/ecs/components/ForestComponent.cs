@@ -6,11 +6,6 @@ using UnityEngine;
 public struct ForestComponent : IComponentData
 {
     /// <summary>
-    /// The prefab to spawn for trees
-    /// </summary>
-    public Entity m_treePrefab;
-
-    /// <summary>
     /// The generator for providing RNG
     /// </summary>
     public Unity.Mathematics.Random m_rng;
@@ -41,6 +36,16 @@ public struct ForestComponent : IComponentData
     /// The min/max death age of trees in the forest
     /// </summary>
     public Range<uint> m_deathAge;
+
+    /// <summary>
+    /// Whether trees should be aligned along xz
+    /// </summary>
+    public bool m_alignTreesAlongXZ;
+
+    /// <summary>
+    /// Whether trees scales should be randomised
+    /// </summary>
+    public bool m_randomiseScale;
 
     //--
 
