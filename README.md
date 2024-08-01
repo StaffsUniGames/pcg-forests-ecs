@@ -14,7 +14,8 @@
 [^2]: The 42nd Computer Graphics & Visual Computing Conference (CGVC)
 
 ### Trailer
-https://github.com/StaffsUniGames/pcg-forests-ecs/raw/main/repo-assets/cgvc-trailer.mp4
+https://github.com/user-attachments/assets/b17a5b06-19d0-46cd-ad0e-8d234daca140
+
 
 ## This repository
 This repository serves as an open-source solution to our recently published optimisation strategy for the real-time simulation of virtual forestry. In our approach, we leverage the power of data-orientation, spatial partitioning, multithreaded parallelisation and native IL compilation to achieve a 45x speedup against serial implementations. We utilise Unity's Entity-Component System to enable a high degree of optimisation for real-time forest simulation. 
