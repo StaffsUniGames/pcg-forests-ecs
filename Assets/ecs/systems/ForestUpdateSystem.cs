@@ -12,7 +12,6 @@ using System.Drawing;
 
 public partial struct ForestUpdateSystem : ISystem
 {
-    
     public void OnCreate(ref SystemState state)
     {
         //Build a query for any forests
@@ -100,44 +99,56 @@ public partial struct FONCompetitionJob : IJobEntity
     [NativeDisableContainerSafetyRestriction]
     public ComponentLookup<TreeComponent> treeLookup;
 
+    //TODO: Ideally these should be moved into the forest component
+    private const float MAX_TREE_RADII = 1.0f;
+    private const float MIN_TREE_RADII = 0.1f;
+
+
     public void Execute([EntityIndexInQuery] int entityIndex, ref TreeComponent tree, ref URPMaterialPropertyBaseColor treeColour,  in Entity entity)
     {
-        //Already culled? No point considering it
+        //Already culled? No point considering it, exit out
         if (tree.m_needsCull)
             return;
 
         float delta = 0;
+
         if(tree.m_age < tree.m_matureAge)
         {
+            //If not mature, lerp value for debug
             delta = (float)tree.m_age / (float)tree.m_matureAge;
             treeColour.Value = new float4(0, math.lerp(0.5f, 1f, delta), 0, 1);
         }
         else 
         {
+            //If mature, also lerp value for debug
             delta = ((float)tree.m_age) / ((float)tree.m_deathAge);
             treeColour.Value = new float4(0, math.lerp(1f, 0.25f, delta), 0, 1);
-
         }
  
+        //Get all other entities in this cell
         var entities = hashMap.GetValuesForKey(tree.m_hash);
 
         foreach(var other in entities)
         {
+            //What's the distance to the other tree?
             var dist = math.distance(other.m_position, tree.m_position);
 
             //They're the same
             if (dist <= math.EPSILON)
                 continue;
 
+            //Get percent of life and calculate fon from this
+            float lifeP = tree.m_age / (float)forest.m_deathAge.max;
+            float fon = math.max(lifeP * MAX_TREE_RADII, MIN_TREE_RADII);
+
             //Not in competition? skip
-            if (math.distance(other.m_position, tree.m_position) > 1.0f)
+            if (math.distance(other.m_position, tree.m_position) > fon)
                 continue;
 
-            //Otherwise..
-            //float maturityA = (tree.m_age / tree.m_deathAge) * forest.m_spreadDistance.min;
-            //float maturityB = (other.m_age / other.m_deathAge) * forest.m_spreadDistance.min;
-
-            //Other larger than this one, set to be culled
+            //Other tree larger than this one? if so, set to be culled. Here FON competition is used
+            //aggressively, selecting the weaker plant for competition. This is done for optimisation as
+            //domination of the smaller species would eventually lead to the same result: the death of the
+            //smaller plant. This skips a few iteration of processing. 
             if (tree.m_age > other.m_age)
                 tree.m_needsCull = true;
         }
@@ -301,8 +312,8 @@ public partial struct SpawnTreesJob : IJobEntity
         if (forest.m_alignTreesAlongXZ)
         {
             //Looks along z-axis with fwd = vec3.up
-            //quaternion rot = quaternion.LookRotationSafe(new float3(0, 0, 1), new float3(0, 0, 1));
-            //trans = LocalTransform.FromPositionRotationScale(randPos3, rot, scale);
+            quaternion rot = quaternion.LookRotationSafe(new float3(0, 0, 1), new float3(0, 0, 1));
+            trans = LocalTransform.FromPositionRotationScale(randPos3, rot, scale);
         }
 
         //Set the position of the entity
