@@ -39,16 +39,19 @@ public partial struct ForestUpdateSystem : ISystem
         {
             BufferLookup<TreePrefabItem> treePrefabLookup = state.GetBufferLookup<TreePrefabItem>(true);
 
-            //This current gets all trees regardless of what "forest" they are in; 
+            //This currently gets all trees regardless of what "forest" they are in. The filtering is done
+            //in the entity job itself. Ideally, the filtering should be done in the query itself. 
             //TODO: make trees reliant on forest index
             var treeQuery = SystemAPI.QueryBuilder().WithAll<TreeComponent>().Build();
             var treeCount = treeQuery.CalculateEntityCount();
 
+            //Run update job
             state.Dependency = new UpdateForestJob { }.ScheduleParallel(state.Dependency);
             state.Dependency.Complete();
 
 			if (treeCount == 0 || forest.ValueRO.m_InitialSeed)
 			{
+                //No trees at all? Spawn some initially
 				UnityEngine.Debug.Log("spawning initial trees");
 
                 //Schedule job to spawn initial number of trees
@@ -110,6 +113,10 @@ public partial struct FONCompetitionJob : IJobEntity
         if (tree.m_needsCull)
             return;
 
+        //Not in this forest? Get out of here
+        if (tree.m_forestIndex != forest.m_forestIndex)
+            return;
+
         float delta = 0;
 
         if(tree.m_age < tree.m_matureAge)
@@ -163,6 +170,10 @@ public partial struct AssignIndexToTreeJob : IJobEntity
 
     public void Execute([EntityIndexInQuery] int entityIndex, ref TreeComponent tree)
     {
+        //Not in this forest? Get out of here
+        if (tree.m_forestIndex != forest.m_forestIndex)
+            return;
+
         var hash = forest.m_spatialHasher.Hash(tree.m_position);
         tree.m_hash = hash;
         parallelHashMap.Add(hash, tree);
@@ -179,7 +190,7 @@ public partial struct CullDeadTreesJob : IJobEntity
         //This culls only entities with a DeadTreeTagComponent attached to them,
         //look at the query given by the params above. Dead tree must be ref'd with
         //in rather than ref
-        if(tree.m_needsCull)
+        if (tree.m_needsCull)
             ecb.DestroyEntity(chunkIndex, entity);
     }
 }
@@ -234,7 +245,8 @@ public partial struct SpawnInitialTreesJob : IJobEntity
                 m_deathAge = forest.m_rng.NextUInt(forest.m_deathAge.min, forest.m_deathAge.max),
                 m_matureAge = forest.m_rng.NextUInt(forest.m_matureAge.min, forest.m_matureAge.max),
                 m_position = randPos2,
-                m_needsCull = false
+                m_needsCull = false,
+                m_forestIndex = forest.m_forestIndex
             });
 
             //Set the position of the entity
@@ -253,6 +265,10 @@ public partial struct SpawnTreesJob : IJobEntity
 
     public void Execute([ChunkIndexInQuery] int chunkIndex, ref TreeComponent tree, in Entity entity)
     {
+        //Not in this forest? Get out of here
+        if (tree.m_forestIndex != forest.m_forestIndex)
+            return;
+
         //TreeComponent modifiedTree = tree;
         tree.m_age++;
 
@@ -326,7 +342,8 @@ public partial struct SpawnTreesJob : IJobEntity
             m_deathAge = forest.m_rng.NextUInt(forest.m_deathAge.min, forest.m_deathAge.max),
             m_matureAge = forest.m_rng.NextUInt(forest.m_matureAge.min, forest.m_matureAge.max),
             m_position = randPos2,
-            m_needsCull = false
+            m_needsCull = false,
+            m_forestIndex = forest.m_forestIndex,
         });
     }
 }

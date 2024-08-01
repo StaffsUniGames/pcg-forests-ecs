@@ -99,7 +99,10 @@ public class ForestBaker : Baker<ForestAuthoring>
 			m_randomiseScale = authoring.m_randomiseScale,
 
 			//Initialise RNG
-			m_rng = new Unity.Mathematics.Random(authoring.m_seed)
+			m_rng = new Unity.Mathematics.Random(authoring.m_seed),
+
+			//Assign index and update number of forests
+			m_forestIndex = ForestComponent.m_forestCount++,
 		});
 
 		if (authoring.m_collectFullDataSet)

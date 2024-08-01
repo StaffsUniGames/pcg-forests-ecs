@@ -80,6 +80,18 @@ public struct ForestComponent : IComponentData
 	/// bool for tracking if the forest is just starting
 	/// </summary>
 	public bool m_InitialSeed;
+
+    //---
+
+    /// <summary>
+    /// The forest's index
+    /// </summary>
+    public uint m_forestIndex;
+
+    /// <summary>
+    /// The forest count, to be used in assigning forest index
+    /// </summary>
+    public static uint m_forestCount = 0;
 }
 
 public struct FilePath

@@ -173,16 +173,16 @@ MonoBehaviour:
   - {fileID: 192044, guid: 19682540d8a014522a319b1cf788aee2, type: 3}
   m_matureAge:
     min: 20
-    max: 25
+    max: 20
   m_deathAge:
-    min: 30
-    max: 30
+    min: 22
+    max: 22
   m_spreadChance:
     min: 0
     max: 0.5
   m_spreadDistance:
-    min: 5
-    max: 10
+    min: 2
+    max: 5
   m_cullRegionX:
     min: 0
     max: 350
