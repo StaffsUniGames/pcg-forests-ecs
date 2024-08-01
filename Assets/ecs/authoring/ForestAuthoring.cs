@@ -51,10 +51,12 @@ public class ForestBaker : Baker<ForestAuthoring>
         //Make an entity for the thing we will attach a forest component to
         var entity = GetEntity(TransformUsageFlags.Dynamic);
 
+		//TODO: Fix the implication that this is from (0, 0)
         float2 worldSize;
         worldSize.x = authoring.m_cullRegionX.max;
         worldSize.y = authoring.m_cullRegionY.max;
 
+		//This is done as unmanaged strings are a nightmare
 		BlobBuilder builder = new BlobBuilder(Allocator.Temp);
 		ref FilePath filePath = ref builder.ConstructRoot<FilePath>();
 		builder.AllocateString(ref filePath.path, Application.dataPath + "/Data/Results_" + System.DateTime.Now.ToString("yyyy_MM_dd_HH_mm_ss") + ".csv");
@@ -62,19 +64,19 @@ public class ForestBaker : Baker<ForestAuthoring>
 		builder.Dispose();
 		AddBlobAsset<FilePath>(ref filePathBlob, out var hash);
 
+		//Get all the prefabs for this forest
 		NativeArray<Entity> prefabs = new NativeArray<Entity>(authoring.m_treePrefabs.Length, Allocator.Persistent);
 
+		//Run throguh each, convert to entity
 		for(int i = 0; i < authoring.m_treePrefabs.Length; i++)
 			prefabs[i] = GetEntity(authoring.m_treePrefabs[i], TransformUsageFlags.Dynamic);
 
+		//Add a buffer to this forest and...
 		DynamicBuffer<TreePrefabItem> buffer = this.AddBuffer<TreePrefabItem>(entity);
 
+		//... fill it with the prefab entities
 		foreach (var prefab in authoring.m_treePrefabs)
 			buffer.Add(new TreePrefabItem { prefab = GetEntity(prefab, TransformUsageFlags.Dynamic) });
-
-		//var buffer = AddBuffer<Spawnable>().Reinterpret<Entity>();
-		//foreach (var prefab in authoring.prefabs)
-			//buffer.Add(GetEntity(prefab));
 
 		AddComponent(entity, new ForestComponent
 		{

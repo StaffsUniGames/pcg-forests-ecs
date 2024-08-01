@@ -30,7 +30,7 @@ public struct SpatialHasher : IComponentData
     }
 
     /// <summary>
-    /// Hashes a position to a given 1D index
+    /// Hashes a position to a given 1D index using a uniform grid
     /// </summary>
     public int Hash(float2 position)
     {

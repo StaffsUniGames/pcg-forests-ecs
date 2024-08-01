@@ -58,6 +58,7 @@ public partial struct ForestUpdateSystem : ISystem
 				state.Dependency = new SpawnInitialTreesJob { ecb = ecb, prefabLookup = treePrefabLookup }.ScheduleParallel(state.Dependency);
                 state.Dependency.Complete();
                 
+                //Set flag down so we don't repeat initialisation
 				forest.ValueRW.m_InitialSeed = false;
 			}
 			else
@@ -86,6 +87,7 @@ public partial struct UpdateForestJob : IJobEntity
 {
     public void Execute([ChunkIndexInQuery] int chunkIndex, ref ForestComponent forest)
     {
+        //Wind dir updated every frame to a random angle [0, 360] deg or [0, pi * 2] rads
         forest.m_windDirection = forest.m_rng.NextFloat(math.PI * 2);
     }
 }
@@ -102,10 +104,9 @@ public partial struct FONCompetitionJob : IJobEntity
     [NativeDisableContainerSafetyRestriction]
     public ComponentLookup<TreeComponent> treeLookup;
 
-    //TODO: Ideally these should be moved into the forest component
+    //TODO: Ideally these should be moved into the forest component for parameterisation
     private const float MAX_TREE_RADII = 1.0f;
     private const float MIN_TREE_RADII = 0.1f;
-
 
     public void Execute([EntityIndexInQuery] int entityIndex, ref TreeComponent tree, ref URPMaterialPropertyBaseColor treeColour,  in Entity entity)
     {
