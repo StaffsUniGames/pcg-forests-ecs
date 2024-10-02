@@ -43,8 +43,8 @@ As mentioned at the start of this document, this repository is an open-source pr
 | Authors | B. Williams, T. Oliver, D. Ward & C. Headleand
 | Publication Year | 2024
 | Venue | [The 42nd Computer Graphics & Visual Computing Conference](https://cgvc.org.uk/CGVC2024/) (CGVC'24)
-| Paper link | **Still in press**
-| DOI | **Still in press**
+| Paper link | [here](https://diglib.eg.org/items/6c6f07ca-9eb8-4450-ab71-5765644452b4)
+| DOI | [10.2312/cgvc.20241218](https://doi.org/10.2312/cgvc.20241218)
 
 
 ## Media
