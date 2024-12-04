@@ -35,7 +35,7 @@ git clone https://github.com/StaffsUniGames/pcg-forests-ecs.git
 From here, open up the project and open the main scene with `File > Open Scene > Assets/ecs/scenes/main.unity`. Following this, try to play the project by using the `Play` button. If nothing happens, you may need to enable the sub-scene in the hierarchy. More information is detailed on this [here](https://docs.unity3d.com/Packages/com.unity.entities@1.0/manual/conversion-subscenes.html).
 
 ## Paper details
-As mentioned at the start of this document, this repository is an open-source project outlined in a paper submitted to CGVC2024. Currently, the paper is undergoing minor revisions. The details below will be updated in due course.
+As mentioned at the start of this document, this repository is an open-source project outlined in a paper submitted to CGVC2024. The details are listed below.
 
 | Category | Detail |
 |----------|-------|
