@@ -46,6 +46,8 @@ As mentioned at the start of this document, this repository is an open-source pr
 | Paper link | [here](https://diglib.eg.org/items/6c6f07ca-9eb8-4450-ab71-5765644452b4)
 | DOI | [10.2312/cgvc.20241218](https://doi.org/10.2312/cgvc.20241218)
 
+## Awards
+Our paper was shortlisted for the best paper award at CGVC, which is incredible. Furthermore, this paper won a special commendation at [Game Republic](https://gamerepublic.net/awards/) for our efforts.
 
 ## Media
 Below is a list of media showcasing our strategy.
